@@ -91,7 +91,7 @@ int BRDC_main( int argc, BRDCHAR *argv[] )
 		if(info.subunitType[0] != 0xffff)
 		{
 			SubmodName(info.subunitType[0], subName);
-			BRDC_printf(_BRDC("        Subm: %s (%X).\n"), subName, info.subunitType[0]);
+			BRDC_printf(_BRDC("     Subm: %s (%X).\n"), subName, info.subunitType[0]);
 		}
 
 //		handle[iDev] = BRD_open(lidList.pLID[iDev], BRDopen_EXCLUSIVE, NULL); // открыть устройство в монопольном режиме
