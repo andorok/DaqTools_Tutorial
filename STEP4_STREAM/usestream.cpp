@@ -475,11 +475,7 @@ S32 DaqIntoFifoDMA(BRD_Handle hADC)
 		status = BRD_ctrl(hADC, 0, BRDctrl_STREAM_CBUF_WAITBUF, &msTimeout);
 		if(BRD_errcmp(status, BRDerr_OK))
 			break;
-#if defined(__IPC_WIN__) || defined(__IPC_LINUX__)
 		IPC_delay(100);
-#else
-		Sleep(100);
-#endif
 	}
 	if(i>=200)
 	{	// если вышли по тайм-ауту, то остановимся
@@ -498,9 +494,10 @@ S32 DaqIntoFifoDMA(BRD_Handle hADC)
 	double msTime = IPC_getDiffTime();
 	printf("DAQ & Transfer by bus rate is %.2f Mbytes/sec\r", ((double)g_bBufSize / msTime)/1000.);
 
-	status = BRD_ctrl(hADC, 0, BRDctrl_ADC_ISBITSOVERFLOW, &adc_status);
 	//status = BRD_ctrl(hADC, 0, BRDctrl_ADC_FIFOSTATUS, &adc_status);
 	//printf("ADC status = 0x%X ", adc_status);
+
+	status = BRD_ctrl(hADC, 0, BRDctrl_ADC_ISBITSOVERFLOW, &adc_status);
 	if(adc_status)
 		printf("ADC Bits OVERFLOW %X  ", adc_status);
 
