@@ -2,7 +2,7 @@
 <VisualStudioProject
 	ProjectType="Visual C++"
 	Version="8,00"
-	Name="usedma"
+	Name="usestream"
 	ProjectGUID="{93A292DE-B046-4A7E-8BD8-D890554B6FBD}"
 	RootNamespace="STEP4_STREAM"
 	Keyword="Win32Proj"
@@ -41,7 +41,7 @@
 				Name="VCCLCompilerTool"
 				Optimization="0"
 				AdditionalIncludeDirectories="$(BardyDir)\gipcy\include,$(BardyDir)\brdinc,$(BardyDir)\brdinc\ctrladmpro"
-				PreprocessorDefinitions="WIN32;_DEBUG;_CONSOLE"
+				PreprocessorDefinitions="__IPC_WIN__;WIN32;_DEBUG;_CONSOLE"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="3"
@@ -119,7 +119,7 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				AdditionalIncludeDirectories="$(BardyDir)\gipcy\include,$(BardyDir)\brdinc,$(BardyDir)\brdinc\ctrladmpro"
-				PreprocessorDefinitions="WIN32;NDEBUG;_CONSOLE"
+				PreprocessorDefinitions="__IPC_WIN__;WIN32;NDEBUG;_CONSOLE"
 				RuntimeLibrary="2"
 				UsePrecompiledHeader="0"
 				WarningLevel="3"
