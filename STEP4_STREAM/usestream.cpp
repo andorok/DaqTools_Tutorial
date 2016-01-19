@@ -13,7 +13,6 @@
 #include	"brd.h"
 #include	"extn.h"
 #include	"ctrladc.h"
-#include	"ctrlsdram.h"
 #include	"ctrlstrm.h"
 #include	"gipcy.h"
 
@@ -22,21 +21,23 @@
 #define		MAX_CHAN	32		// считаем, что каналов может быть не больше MAX_CHAN
 
 
-BRDCHAR g_AdcSrvName[64] = _BRDC("FM212x1G0"); // с номером службы
+BRDCHAR g_AdcSrvName[64] = _BRDC("FM412x500M0"); // с номером службы
+//BRDCHAR g_AdcSrvName[64] = _BRDC("FM212x1G0"); // с номером службы
 //BRDCHAR g_AdcSrvName[64] = _BRDC("FM816x250M0"); // с номером службы
 //BRDCHAR g_AdcSrvName[64] = _BRDC("ADC214X400M0"); // с номером службы
+
 S32 SetParamSrv(BRD_Handle handle, BRD_ServList* srv, int idx);
 S32 AllocDaqBuf(BRD_Handle hADC, PVOID* &pSig, unsigned long long* pbytesBufSize, int memType, int* pBlkNum);
 S32 FreeDaqBuf(BRD_Handle hADC, ULONG blkNum);
 S32 DaqIntoFifoDMA(BRD_Handle hADC);
 
-BRDCHAR g_iniFileName[FILENAME_MAX] = _BRDC("//ADC_FM212x1G.ini");
+BRDCHAR g_iniFileName[FILENAME_MAX] = _BRDC("//ADC_FM412x500M.ini");
+//BRDCHAR g_iniFileName[FILENAME_MAX] = _BRDC("//ADC_FM212x1G.ini");
 //BRDCHAR g_iniFileName[FILENAME_MAX] = _BRDC("//ADC_FM816x250M.ini");
 //BRDCHAR g_iniFileName[FILENAME_MAX] = _BRDC("//ADC_214x400M.ini");
 
 BRDctrl_StreamCBufAlloc g_buf_dscr; // описание буфера стрима
 unsigned long long g_bBufSize; // размер собираемых данных (в байтах)
-U32 g_MemAsFifo = 0; // 1 - использовать динамическую память на модуле в качестве FIFO
 int g_MemType = 0; // тип памяти для стрима
 
 //=************************* main *************************
@@ -128,7 +129,7 @@ int BRDC_main( int argc, BRDCHAR *argv[] )
 					{
 						int blk_num = 1;
 						PVOID* pSig = NULL; // указатель на массив указателей на блоки памяти с сигналом
-						g_bBufSize = 256 * 1024 * 1024; // собирать будем 64 Мбайта
+						g_bBufSize = 256 * 1024 * 1024; // собирать будем 256 Мбайта
 						AllocDaqBuf(hADC, pSig, &g_bBufSize, g_MemType, &blk_num);
 						DaqIntoFifoDMA(hADC);
 
@@ -180,60 +181,6 @@ S32 AdcSettings(BRD_Handle hADC, int idx, BRDCHAR* srvName)
 	BRDC_strcpy(ini_file.sectionName, iniSectionName);
 	status = BRD_ctrl(hADC, 0, BRDctrl_ADC_READINIFILE, &ini_file);
 
-	if(g_MemAsFifo)
-	{	
-		// проверяем наличие динамической памяти
-		BRD_SdramCfgEx SdramConfig;
-		SdramConfig.Size = sizeof(BRD_SdramCfgEx);
-		ULONG PhysMemSize;
-		status = BRD_ctrl(hADC, 0, BRDctrl_SDRAM_GETCFGEX, &SdramConfig);
-		if(status < 0)
-		{
-			BRDC_printf(_BRDC("Get SDRAM Config: Error!!!\n"));
-			g_MemAsFifo = 0;
-			return BRDerr_OK;
-		}
-		else
-		{
-			if(SdramConfig.MemType == 11) //DDR3
-				PhysMemSize =	(ULONG)((
-										(((__int64)SdramConfig.CapacityMbits * 1024 * 1024) >> 3) * 
-										(__int64)SdramConfig.PrimWidth / SdramConfig.ChipWidth * SdramConfig.ModuleBanks *
-										SdramConfig.ModuleCnt) >> 2); // в 32-битных словах
-			else
-				PhysMemSize =	(1 << SdramConfig.RowAddrBits) *
-								(1 << SdramConfig.ColAddrBits) * 
-								SdramConfig.ModuleBanks * 
-								SdramConfig.ChipBanks *
-								SdramConfig.ModuleCnt * 2; // в 32-битных словах
-		}
-		if(PhysMemSize)
-		{ // динамическая память присутствует на модуле
-			BRDC_printf(_BRDC("SDRAM Config: Memory size = %d MBytes\n"), (PhysMemSize / (1024 * 1024)) * 4);
-
-			// установить параметры SDRAM
-			ULONG target = 2; // будем осуществлять сбор данных в память
-			status = BRD_ctrl(hADC, 0, BRDctrl_ADC_SETTARGET, &target);
-
-			ULONG fifo_mode = 1; // память используется как FIFO
-			status = BRD_ctrl(hADC, 0, BRDctrl_SDRAM_SETFIFOMODE, &fifo_mode);
-
-			g_bBufSize = PhysMemSize; // собирать будем в 4 раза меньше, чем памяти на модуле
-			if(PhysMemSize > 32 * 1024 * 1024)
-				g_bBufSize = 32 * 1024 * 1024; // собирать будем 32 Мбайта
-			BRDC_printf(_BRDC("SDRAM as a FIFO mode!!!\n"));
-
-		}
-		else
-		{
-			 // освободить службу SDRAM (она могла быть захвачена командой BRDctrl_SDRAM_GETCFG, если та отработала без ошибки)
-			ULONG mem_size = 0;
-			status = BRD_ctrl(hADC, 0, BRDctrl_SDRAM_SETMEMSIZE, &mem_size);
-			BRDC_printf(_BRDC("No SDRAM on board!!!\n"));
-			g_MemAsFifo = 0;
-		}
-
-	}
 	return status;
 }
 
@@ -391,10 +338,7 @@ S32 DaqIntoFifoDMA(BRD_Handle hADC)
 
 	// установить источник для работы стрима
 	ULONG tetrad;
-	if(g_MemAsFifo)
-		status = BRD_ctrl(hADC, 0, BRDctrl_SDRAM_GETSRCSTREAM, &tetrad); // стрим будет работать с SDRAM
-	else
-		status = BRD_ctrl(hADC, 0, BRDctrl_ADC_GETSRCSTREAM, &tetrad); // стрим будет работать с АЦП
+	status = BRD_ctrl(hADC, 0, BRDctrl_ADC_GETSRCSTREAM, &tetrad); // стрим будет работать с АЦП
 	status = BRD_ctrl(hADC, 0, BRDctrl_STREAM_SETSRC, &tetrad);
 
 	// устанавливать флаг для формирования запроса ПДП надо после установки источника (тетрады) для работы стрима
@@ -404,11 +348,6 @@ S32 DaqIntoFifoDMA(BRD_Handle hADC)
 	status = BRD_ctrl(hADC, 0, BRDctrl_STREAM_SETDRQ, &flag);
 
 	status = BRD_ctrl(hADC, 0, BRDctrl_ADC_FIFORESET, NULL); // сброс FIFO АЦП
-	if(g_MemAsFifo)
-	{
-		status = BRD_ctrl(hADC, 0, BRDctrl_SDRAM_FIFORESET, NULL); // сброс FIFO SDRAM
-		status = BRD_ctrl(hADC, 0, BRDctrl_SDRAM_ENABLE, &Enable); // разрешение записи в SDRAM
-	}
 	status = BRD_ctrl(hADC, 0, BRDctrl_STREAM_RESETFIFO, NULL);
 
 	BRDctrl_StreamCBufStart start_pars;
@@ -442,17 +381,8 @@ S32 DaqIntoFifoDMA(BRD_Handle hADC)
 	{	// если вышли по тайм-ауту, то остановимся
 		status = BRD_ctrl(hADC, 0, BRDctrl_STREAM_CBUF_STOP, NULL);
 		status = BRD_ctrl(hADC, 0, BRDctrl_ADC_FIFOSTATUS, &adc_status);
-		if(g_MemAsFifo)
-		{
-			status = BRD_ctrl(hADC, 0, BRDctrl_SDRAM_FIFOSTATUS, &sdram_status);
-			BRDC_printf(_BRDC("BRDctrl_STREAM_CBUF_WAITBUF is TIME-OUT(%d sec.)\n    AdcFifoStatus = %08X SdramFifoStatus = %08X"),
-															msTimeout*(i+1)/1000, adc_status, sdram_status);
-		}
-		else
-		{
-			BRDC_printf(_BRDC("BRDctrl_STREAM_CBUF_WAITBUF is TIME-OUT(%d sec.)\n    AdcFifoStatus = %08X"),
-															msTimeout*(i+1)/1000, adc_status);
-		}
+		BRDC_printf(_BRDC("BRDctrl_STREAM_CBUF_WAITBUF is TIME-OUT(%d sec.)\n    AdcFifoStatus = %08X"),
+														msTimeout*(i+1)/1000, adc_status);
 	}
 
 	//while(1) // при старте с зацикливанием
@@ -481,9 +411,6 @@ S32 DaqIntoFifoDMA(BRD_Handle hADC)
 	Enable = 0;
 	status = BRD_ctrl(hADC, 0, BRDctrl_ADC_ENABLE, &Enable); // запрет работы АЦП
 
-	if(g_MemAsFifo)
-		status = BRD_ctrl(hADC, 0, BRDctrl_SDRAM_ENABLE, &Enable); // запрет записи в SDRAM
-
 	if(BRD_errcmp(wait_status, BRDerr_OK))
 	{
 		BRDC_printf(_BRDC("ADC Stop         \r"));
@@ -497,10 +424,7 @@ S32 DaqIntoFifoDMA(BRD_Handle hADC)
 		if(adc_status)
 			printf("ADC Bits OVERFLOW %X  ", adc_status);
 
-		if(g_MemAsFifo)
-			BRDC_printf(_BRDC("DAQ by DMA from SDRAM as FIFO is complete!!!\n"));
-		else
-			BRDC_printf(_BRDC("DAQ by DMA from FIFO is complete!!!\n"));
+		BRDC_printf(_BRDC("DAQ by DMA from FIFO is complete!!!\n"));
 	}
 	return status;
 }
