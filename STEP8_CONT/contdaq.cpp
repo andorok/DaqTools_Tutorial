@@ -36,12 +36,8 @@ BRDCHAR g_iniFileName[FILENAME_MAX] = _BRDC("//ADC_FM412x500M.ini");
 //BRDCHAR g_iniFileName[FILENAME_MAX] = _BRDC("//ADC_FM816x250M.ini");
 //BRDCHAR g_iniFileName[FILENAME_MAX] = _BRDC("//ADC_214x400M.ini");
 
-BRDctrl_StreamCBufAlloc g_buf_dscr; // описание буфера стрима
-unsigned long long g_bBufSize; // размер собираемых данных (в байтах)
-int g_MemType = 0; // тип пам€ти дл€ стрима
-
-				   //=************************* main *************************
-				   //=********************************************************
+//=************************* main *************************
+//=********************************************************
 int BRDC_main(int argc, BRDCHAR *argv[])
 {
 	S32		status;
@@ -155,8 +151,6 @@ S32 AdcSettings(BRD_Handle hADC, int idx, BRDCHAR* srvName)
 	BRDC_printf(_BRDC("ADC Config: %d Bits, FIFO is %d kBytes, %d channels\n"), adc_cfg.Bits, adc_cfg.FifoSize / 1024, adc_cfg.NumChans);
 	BRDC_printf(_BRDC("            Min rate = %d kHz, Max rate = %d MHz\n"), adc_cfg.MinRate / 1000, adc_cfg.MaxRate / 1000000);
 
-	g_bBufSize = adc_cfg.FifoSize;
-
 	// задать параметры работы ј÷ѕ из секции ini-файла
 	BRDCHAR iniFilePath[MAX_PATH];
 	BRDCHAR iniSectionName[MAX_PATH];
@@ -204,9 +198,6 @@ S32 AdcSettings(BRD_Handle hADC, int idx, BRDCHAR* srvName)
 		ULONG fifo_mode = 1; // пам€ть используетс€ как FIFO
 		status = BRD_ctrl(hADC, 0, BRDctrl_SDRAM_SETFIFOMODE, &fifo_mode);
 
-		g_bBufSize = PhysMemSize; // собирать будем в 4 раза меньше, чем пам€ти на модуле
-		if (PhysMemSize > 32 * 1024 * 1024)
-			g_bBufSize = 32 * 1024 * 1024; // собирать будем 32 ћбайта
 		BRDC_printf(_BRDC("SDRAM as a FIFO mode!!!\n"));
 	}
 	else
@@ -266,6 +257,9 @@ void ContinueDaq(BRD_Handle hADC)
 	IPC_deleteThread(hThread);
 }
 
+//= различные варианты обработки полученных данных 
+
+//= сдвиг 
 void Incrementing(void* buf, ULONG size)
 {
 	USHORT* pSig = (USHORT*)buf;
@@ -275,6 +269,7 @@ void Incrementing(void* buf, ULONG size)
 		pSig[i] += 1;
 }
 
+//= вычисление среднего значени€
 double Average(void* buf, ULONG size)
 {
 	SHORT* pSig = (SHORT*)buf;
@@ -282,12 +277,13 @@ double Average(void* buf, ULONG size)
 	double sum = 0;
 	for (int i = 0; i < num; i++)
 	{
-		double sample = (double)(pSig[i] >> 2);
+		double sample = (double)(pSig[i]);
 		sum += sample;
 	}
 	return (sum / num);
 }
 
+//= вычисление минимального и максимального значений
 void MinMax(void* buf, ULONG size, double& minval, double& maxval)
 {
 	SHORT* pSig = (SHORT*)buf;
@@ -295,7 +291,7 @@ void MinMax(void* buf, ULONG size, double& minval, double& maxval)
 	double sum = 0;
 	for (int i = 0; i < num; i++)
 	{
-		double sample = (double)(pSig[i]/* >> 2*/);
+		double sample = (double)(pSig[i]);
 		if (sample < minval)
 			minval = sample;
 		if (sample > maxval)
@@ -303,6 +299,11 @@ void MinMax(void* buf, ULONG size, double& minval, double& maxval)
 	}
 }
 
+//= функци€, выполн€ющаа€с€ в отдельном треде
+//= выделение пам€ти дл€ стрима, запуск стрима в непрерывном режиме,
+//= обработка в цикле одного из полученных блоков данных,
+//= выход из цикла по клавише Esc,
+//= останов стрима, освобождение пам€ти
 thread_value __IPC_API ContDaqThread(void* pParams)
 {
 	S32		status = BRDerr_OK;
