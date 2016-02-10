@@ -68,9 +68,13 @@ int DEV_info(BRD_Handle hDEV, int idev, DEV_INFO* pdevcfg);
 int DEV_close(BRD_Handle hDEV);
 // открыть АЦП и получить информацию о нем 
 BRD_Handle ADC_open(BRD_Handle hDEV, BRDCHAR* adcsrv, BRD_AdcCfg* adcfg);
+// установить рабочие параметры АЦП
 int ADC_set(BRD_Handle hADC, int idev, BRDCHAR* adcsrv, BRDCHAR* inifile, ADC_PARAM* adcpar);
+// размещение буфера для получения данных с АЦП через Стрим
 S32 ADC_allocbuf(BRD_Handle hADC, PVOID* &pSig, unsigned long long* pbytesBufSize, int* pBlkNum, int memType);
+// выполнить сбор данных в FIFO с ПДП-методом передачи в ПК
 int ADC_read(BRD_Handle hADC);
+// освобождение буфера стрима
 S32 ADC_freebuf(BRD_Handle hADC, ULONG blkNum);
 // закрыть АЦП
 int ADC_close(BRD_Handle hADC);
@@ -105,13 +109,6 @@ void DisplayDeviceInfo(PDEV_INFO pDevInfo)
 		BRDC_printf(_BRDC("Service %d: %s\n"), j, pDevInfo->srvName[j]);
 		j++;
 	}
-	//BRDCHAR* srv_name = pDevInfo->srvName;
-	//while (BRDC_strlen(srv_name))
-	//{
-	//	BRDC_printf(_BRDC("Service %d: %s\n"), j++, srv_name);
-	//	srv_name += MAX_NAME;
-	//}
-
 }
 
 //=************************* main *************************
@@ -137,12 +134,10 @@ int BRDC_main( int argc, BRDCHAR *argv[] )
 	// получить информацию об открытом устройстве
 	DEV_INFO dev_info;
 	dev_info.size = sizeof(DEV_INFO);
-	//dev_info.srvName = new BRDCHAR[MAX_NAME*MAX_SRV];
 	DEV_info(hDev, idev, &dev_info);
 
 	// отобразить полученную информацию
 	DisplayDeviceInfo(&dev_info);
-	//delete dev_info.srvName;
 
 	// открыть АЦП и получить информацию о нем 
 	BRD_AdcCfg adc_cfg;
@@ -254,9 +249,9 @@ BRD_Handle DEV_open(BRDCHAR* inifile, int iDev, S32* pnumdev)
 	status = BRD_lidList(lidList.pLID, lidList.item, &lidList.itemReal);
 
 	BRD_Handle handle = BRD_open(lidList.pLID[iDev], BRDopen_SHARED, NULL); // открыть устройство в разделяемом режиме
-	if(handle > 0)
-	{
-		//// получить список служб
+//	if(handle > 0)
+//	{
+		// получить список служб
 		//U32 ItemReal;
 		//BRD_ServList srvList[MAX_SRV];
 		//status = BRD_serviceList(handle, 0, srvList, MAX_SRV, &ItemReal);
@@ -267,7 +262,7 @@ BRD_Handle DEV_open(BRDCHAR* inifile, int iDev, S32* pnumdev)
 		//}
 		//else
 		//	BRDC_printf(_BRDC("BRD_serviceList: Real Items = %d (> 16 - ERROR!!!)\n"), ItemReal);
-	}
+//	}
 	delete lidList.pLID;
 	return handle;
 }
@@ -386,13 +381,6 @@ int DEV_info(BRD_Handle hDEV, int iDev, DEV_INFO* pdevcfg)
 		for (j = 0; j < ItemReal; j++)
 			BRDC_strcpy(pdevcfg->srvName[j], srvList[j].name);
 		BRDC_strcpy(pdevcfg->srvName[j], _BRDC(""));
-		//BRDCHAR* srv_name = pdevcfg->srvName;
-		//for (j = 0; j < ItemReal; j++)
-		//{
-		//	BRDC_strcpy(srv_name, srvList[j].name);
-		//	srv_name += MAX_NAME;
-		//}
-		//BRDC_strcpy(srv_name, _BRDC(""));
 	}
 	else
 		BRDC_printf(_BRDC("BRD_serviceList: Real Items = %d (> 16 - ERROR!!!)\n"), ItemReal);
@@ -413,32 +401,28 @@ int DEV_close(BRD_Handle hDEV)
 // hDEV - (IN) дескриптор открытого устройства
 // adcsrv - (IN) имя службы АЦП
 // adcfg - (OUT) заполняемая информацией об АЦП структура
+// возвращает дескриптор службы АЦП
 BRD_Handle ADC_open(BRD_Handle hDEV, BRDCHAR* adcsrv, BRD_AdcCfg* adcfg)
 {
 	S32		status;
 	BRD_Handle hADC = -1;
 	int j = 0;
-	//while (BRDC_strlen(g_srvName[j]))
-	//{
-	//	if (!BRDC_stricmp(g_srvName[j], adcsrv))
-	//		break;
-	//	j++;
-	//}
-	//if (BRDC_strlen(g_srvName[j]))
-	//{
-		U32 mode = BRDcapt_EXCLUSIVE;
-		hADC = BRD_capture(hDEV, 0, &mode, adcsrv, 10000);
-		if (hADC > 0)
-		{
-			if (mode != BRDcapt_EXCLUSIVE)
-				return -1;
-			status = BRD_ctrl(hADC, 0, BRDctrl_ADC_GETCFG, adcfg);
-		}
-	//}
+	U32 mode = BRDcapt_EXCLUSIVE;
+	hADC = BRD_capture(hDEV, 0, &mode, adcsrv, 10000);
+	if (hADC > 0)
+	{
+		if (mode != BRDcapt_EXCLUSIVE)
+			return -1;
+		status = BRD_ctrl(hADC, 0, BRDctrl_ADC_GETCFG, adcfg);
+	}
 	return hADC;
 }
 	
-// установить параметры АЦП
+// установить рабочие параметры АЦП
+// hADC - (IN) дескриптор службы АЦП
+// adcsrv - (IN) имя службы АЦП
+// inifile - (IN) файл инициализации c параметрами работы АЦП
+// adcpar - (OUT) заполняемая рабочими параметрами АЦП структура
 int ADC_set(BRD_Handle hADC, int iDev, BRDCHAR* adcsrv, BRDCHAR* inifile, ADC_PARAM* adcpar)
 {
 	S32		status;
