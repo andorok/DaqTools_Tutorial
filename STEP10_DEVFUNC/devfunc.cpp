@@ -12,6 +12,7 @@
 #include	"brd.h"
 #include	"extn.h"
 #include	"ctrladc.h"
+#include	"ctrlstrm.h"
 
 #include	"gipcy.h"
 
@@ -44,6 +45,7 @@ typedef struct
 	BRDCHAR		srvName[MAX_NAME][MAX_SRV];	// massive of Service Names
 } DEV_INFO, *PDEV_INFO;
 
+// информация о рабочих параметрах АЦП
 typedef struct
 {
 	U32		size;			// sizeof(ADC_PARAM)
@@ -59,6 +61,7 @@ typedef struct
 //BRDCHAR g_AdcSrvName[MAX_NAME] = _BRDC("FM212x1G0"); // имя службы с номером 
 //BRDCHAR g_AdcSrvName[MAX_NAME] = _BRDC("FM814x250M0"); // имя службы с номером 
 BRDCHAR g_AdcSrvName[MAX_NAME] = _BRDC("ADC214X400M0"); // имя службы с номером 
+BRDctrl_StreamCBufAlloc g_buf_dscr; // описание буфера стрима
 
 // открыть устройство
 BRD_Handle DEV_open(BRDCHAR * inifile, int idev, int* numdev);
@@ -71,11 +74,11 @@ BRD_Handle ADC_open(BRD_Handle hDEV, BRDCHAR* adcsrv, BRD_AdcCfg* adcfg);
 // установить рабочие параметры АЦП
 int ADC_set(BRD_Handle hADC, int idev, BRDCHAR* adcsrv, BRDCHAR* inifile, ADC_PARAM* adcpar);
 // размещение буфера для получения данных с АЦП через Стрим
-S32 ADC_allocbuf(BRD_Handle hADC, PVOID* &pSig, unsigned long long* pbytesBufSize, int* pBlkNum, int memType);
+S32 ADC_allocbuf(BRD_Handle hADC, U64* pbytesBufSize);
 // выполнить сбор данных в FIFO с ПДП-методом передачи в ПК
 int ADC_read(BRD_Handle hADC);
 // освобождение буфера стрима
-S32 ADC_freebuf(BRD_Handle hADC, ULONG blkNum);
+S32 ADC_freebuf(BRD_Handle hADC);
 // закрыть АЦП
 int ADC_close(BRD_Handle hADC);
 
@@ -111,13 +114,15 @@ void DisplayDeviceInfo(PDEV_INFO pDevInfo)
 	}
 }
 
-//=************************* main *************************
+//=********************************* main ********************************************
+//====================================================================================
 int BRDC_main( int argc, BRDCHAR *argv[] )
 {
 	// чтобы все печати сразу выводились на экран
 	fflush(stdout);
 	setbuf(stdout, NULL);
 
+	//====================================================================================
 	// открыть устройство, описанное в указанном файле с указанным порядковым номером LID 
 	// возвращает дескриптор устройства (также возвращает общее число устройств)
 	int idev = 0;
@@ -131,6 +136,7 @@ int BRDC_main( int argc, BRDCHAR *argv[] )
 	}
 	BRDC_printf(_BRDC("Number of devices = %d\n"), num_dev);
 
+	//====================================================================================
 	// получить информацию об открытом устройстве
 	DEV_INFO dev_info;
 	dev_info.size = sizeof(DEV_INFO);
@@ -139,6 +145,7 @@ int BRDC_main( int argc, BRDCHAR *argv[] )
 	// отобразить полученную информацию
 	DisplayDeviceInfo(&dev_info);
 
+	//====================================================================================
 	// открыть АЦП и получить информацию о нем 
 	BRD_AdcCfg adc_cfg;
 	BRD_Handle hADC = ADC_open(hDev, g_AdcSrvName, &adc_cfg);
@@ -149,6 +156,7 @@ int BRDC_main( int argc, BRDCHAR *argv[] )
 		return -1;
 	}
 
+	//====================================================================================
 	// установить параметры работы АЦП
 	ADC_PARAM adc_param;
 	dev_info.size = sizeof(ADC_PARAM);
@@ -162,37 +170,42 @@ int BRDC_main( int argc, BRDCHAR *argv[] )
 	BRDC_printf(_BRDC("ADC clocking: source = %d, value = %.2f MHz, rate = %.3f kHz\n\n"),
 		adc_param.clkSrc, adc_param.clkValue / 1000000, adc_param.rate / 1000);
 
-	int blk_num = 1;
-	PVOID* pSig = NULL; // указатель на массив указателей на блоки памяти с сигналом
-	U64 g_bBufSize = 256 * 1024 * 1024; // собирать будем 256 Мбайта
-
+	//====================================================================================
+	U64 bBufSize = 256 * 1024 * 1024; // собирать будем 256 Мбайта
+	g_buf_dscr.blkNum = 1;
+	g_buf_dscr.isCont = 0;
+	g_buf_dscr.ppBlk = NULL; // указатель на массив указателей на блоки памяти с сигналом
 	// выделить буфер для сбора данных с АЦП
-	S32 ret = ADC_allocbuf(hADC, pSig, &g_bBufSize, &blk_num, 0);
+	S32 ret = ADC_allocbuf(hADC, &bBufSize);
 	if(ret == -1)
 		BRDC_printf(_BRDC("IPC_virtAlloc() by allocating of buffer is error!!!\n"));
 	else
 	{
 		if (BRD_errcmp(ret, BRDerr_OK))
 		{
-			int blkSize = int(g_bBufSize / blk_num);
 			BRDC_printf(_BRDC("Allocated memory for Stream: Number of blocks = %d, Block size = %d kBytes\n"),
-				blk_num, blkSize / 1024);
+				g_buf_dscr.blkNum, g_buf_dscr.blkSize / 1024);
 
+			//====================================================================================
 			// выполнить сбор данных с АЦП
 			BRDC_printf(_BRDC("ADC is starting...     \r"));
 			ret = ADC_read(hADC);
+
 			if (BRD_errcmp(ret, BRDerr_OK))
 			{
 				BRDC_printf(_BRDC("DAQ by DMA from FIFO is complete!!!\n"));
 				// записать собранные данные в файл
 				IPC_handle hfile = 0;
 				hfile = IPC_openFile(_BRDC("data.bin"), IPC_CREATE_FILE | IPC_FILE_WRONLY);
-				for (int iBlk = 0; iBlk < blk_num; iBlk++)
-					IPC_writeFile(hfile, pSig[iBlk], blkSize);
+				for (U32 iBlk = 0; iBlk < g_buf_dscr.blkNum; iBlk++)
+					//IPC_writeFile(hfile, pSig[iBlk], g_buf_dscr.blkSize);
+					IPC_writeFile(hfile, g_buf_dscr.ppBlk[iBlk], g_buf_dscr.blkSize);
 				IPC_closeFile(hfile);
 			}
+
+			//====================================================================================
 			// освободить буфер
-			ADC_freebuf(hADC, blk_num);
+			ADC_freebuf(hADC);
 		}
 		else
 		{
@@ -211,6 +224,8 @@ int BRDC_main( int argc, BRDCHAR *argv[] )
 							BRDC_printf(_BRDC("BRDctrl_STREAM_CBUF_ALLOC ERROR: status = 0x%08X\n"), ret);
 		}
 	}
+
+	//====================================================================================
 	// закрыть АЦП
 	ADC_close(hADC);
 	// закрыть устройство
@@ -467,10 +482,6 @@ int ADC_close(BRD_Handle hADC)
 	return status;
 }
 
-#include	"ctrlstrm.h"
-
-BRDctrl_StreamCBufAlloc g_buf_dscr; // описание буфера стрима
-
 #ifdef _WIN32
 #define MAX_BLOCK_SIZE 1073741824		// максимальный размер блока = 1 Гбайт 
 #else  // LINUX
@@ -486,7 +497,9 @@ BRDctrl_StreamCBufAlloc g_buf_dscr; // описание буфера стрим�
 //		0 - пользовательская память выделяется в драйвере (точнее, в DLL базового модуля)
 //		1 - системная память выделяется драйвере 0-го кольца
 //		2 - пользовательская память выделяется в приложении
-S32 ADC_allocbuf(BRD_Handle hADC, PVOID* &pSig, unsigned long long* pbytesBufSize, int* pBlkNum, int memType)
+//S32 ADC_allocbuf(BRD_Handle hADC, PVOID* &pSig, unsigned long long* pbytesBufSize, int* pBlkNum, int memType)
+//S32 ADC_allocbuf(BRD_Handle hADC, PVOID* &pSig, U64* pbytesBufSize)
+S32 ADC_allocbuf(BRD_Handle hADC, U64* pbytesBufSize)
 {
 	S32		status;
 
@@ -504,7 +517,7 @@ S32 ADC_allocbuf(BRD_Handle hADC, PVOID* &pSig, unsigned long long* pbytesBufSiz
 	bBlkSize = (ULONG)bBufSize;
 
 	void** pBuffer = NULL;
-	if (2 == memType)
+	if (2 == g_buf_dscr.isCont)
 	{
 		pBuffer = new PVOID[blkNum];
 		for (ULONG i = 0; i < blkNum; i++)
@@ -515,7 +528,7 @@ S32 ADC_allocbuf(BRD_Handle hADC, PVOID* &pSig, unsigned long long* pbytesBufSiz
 		}
 	}
 	g_buf_dscr.dir = BRDstrm_DIR_IN;
-	g_buf_dscr.isCont = memType;
+	//g_buf_dscr.isCont = memType;
 	g_buf_dscr.blkNum = blkNum;
 	g_buf_dscr.blkSize = bBlkSize;//*pbytesBufSize;
 	g_buf_dscr.ppBlk = new PVOID[g_buf_dscr.blkNum];
@@ -539,7 +552,7 @@ S32 ADC_allocbuf(BRD_Handle hADC, PVOID* &pSig, unsigned long long* pbytesBufSiz
 		}
 		else
 		{ // при выделении памяти произошла ошибка
-			if (2 == memType)
+			if (2 == g_buf_dscr.isCont)
 			{
 				for (ULONG i = 0; i < blkNum; i++)
 					IPC_virtFree(g_buf_dscr.ppBlk[i]);
@@ -548,24 +561,24 @@ S32 ADC_allocbuf(BRD_Handle hADC, PVOID* &pSig, unsigned long long* pbytesBufSiz
 			return status;
 		}
 	}
-	pSig = new PVOID[blkNum];
-	for (ULONG i = 0; i < blkNum; i++)
-	{
-		pSig[i] = g_buf_dscr.ppBlk[i];
-	}
+	//pSig = new PVOID[blkNum];
+	//for (ULONG i = 0; i < blkNum; i++)
+	//{
+	//	pSig[i] = g_buf_dscr.ppBlk[i];
+	//}
 	*pbytesBufSize = (unsigned long long)g_buf_dscr.blkSize * blkNum;
-	*pBlkNum = blkNum;
+	//*pBlkNum = blkNum;
 	return status;
 }
 
 // освобождение буфера стрима
-S32 ADC_freebuf(BRD_Handle hADC, ULONG blkNum)
+S32 ADC_freebuf(BRD_Handle hADC)
 {
 	S32		status;
 	status = BRD_ctrl(hADC, 0, BRDctrl_STREAM_CBUF_FREE, NULL);
 	if (g_buf_dscr.isCont == 2)
 	{
-		for (ULONG i = 0; i < blkNum; i++)
+		for (ULONG i = 0; i < g_buf_dscr.blkNum; i++)
 			IPC_virtFree(g_buf_dscr.ppBlk[i]);
 	}
 	delete[] g_buf_dscr.ppBlk;
