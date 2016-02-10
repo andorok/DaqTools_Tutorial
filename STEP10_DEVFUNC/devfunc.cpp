@@ -41,7 +41,7 @@ typedef struct
 	U16			subVer;			// Subunit version
 	U32			subPID;			// Subunit serial number
 	BRDCHAR		subName[MAX_NAME];	// Submodule Name
-	BRDCHAR*	srvName;		// pointer of Service Names
+	BRDCHAR		srvName[MAX_NAME][MAX_SRV];	// massive of Service Names
 } DEV_INFO, *PDEV_INFO;
 
 typedef struct
@@ -100,17 +100,17 @@ void DisplayDeviceInfo(PDEV_INFO pDevInfo)
 		pDevInfo->subName, pDevInfo->subVer >> 4, pDevInfo->subVer & 0xf, pDevInfo->subType, pDevInfo->subPID);
 
 	int j = 0;
-	//while (BRDC_strlen(srv_name[j]))
-	//{
-	//	BRDC_printf(_BRDC("Service %d: %s\n"), j, srv_name[j]);
-	//	j++;
-	//}
-	BRDCHAR* srv_name = pDevInfo->srvName;
-	while (BRDC_strlen(srv_name))
+	while (BRDC_strlen(pDevInfo->srvName[j]))
 	{
-		BRDC_printf(_BRDC("Service %d: %s\n"), j++, srv_name);
-		srv_name += MAX_NAME;
+		BRDC_printf(_BRDC("Service %d: %s\n"), j, pDevInfo->srvName[j]);
+		j++;
 	}
+	//BRDCHAR* srv_name = pDevInfo->srvName;
+	//while (BRDC_strlen(srv_name))
+	//{
+	//	BRDC_printf(_BRDC("Service %d: %s\n"), j++, srv_name);
+	//	srv_name += MAX_NAME;
+	//}
 
 }
 
@@ -137,12 +137,12 @@ int BRDC_main( int argc, BRDCHAR *argv[] )
 	// получить информацию об открытом устройстве
 	DEV_INFO dev_info;
 	dev_info.size = sizeof(DEV_INFO);
-	dev_info.srvName = new BRDCHAR[MAX_NAME*MAX_SRV];
+	//dev_info.srvName = new BRDCHAR[MAX_NAME*MAX_SRV];
 	DEV_info(hDev, idev, &dev_info);
 
 	// отобразить полученную информацию
 	DisplayDeviceInfo(&dev_info);
-	delete dev_info.srvName;
+	//delete dev_info.srvName;
 
 	// открыть АЦП и получить информацию о нем 
 	BRD_AdcCfg adc_cfg;
@@ -383,16 +383,16 @@ int DEV_info(BRD_Handle hDEV, int iDev, DEV_INFO* pdevcfg)
 	if (ItemReal <= MAX_SRV)
 	{
 		U32 j = 0;
-//		for (j = 0; j < ItemReal; j++)
-//			BRDC_strcpy(srv_name[j], srvList[j].name);
-//		BRDC_strcpy(srv_name[j], _BRDC(""));
-		BRDCHAR* srv_name = pdevcfg->srvName;
 		for (j = 0; j < ItemReal; j++)
-		{
-			BRDC_strcpy(srv_name, srvList[j].name);
-			srv_name += MAX_NAME;
-		}
-		BRDC_strcpy(srv_name, _BRDC(""));
+			BRDC_strcpy(pdevcfg->srvName[j], srvList[j].name);
+		BRDC_strcpy(pdevcfg->srvName[j], _BRDC(""));
+		//BRDCHAR* srv_name = pdevcfg->srvName;
+		//for (j = 0; j < ItemReal; j++)
+		//{
+		//	BRDC_strcpy(srv_name, srvList[j].name);
+		//	srv_name += MAX_NAME;
+		//}
+		//BRDC_strcpy(srv_name, _BRDC(""));
 	}
 	else
 		BRDC_printf(_BRDC("BRD_serviceList: Real Items = %d (> 16 - ERROR!!!)\n"), ItemReal);
