@@ -21,15 +21,14 @@
 #define		MAX_CHAN	32		// считаем, что каналов может быть не больше MAX_CHAN
 
 
-BRDCHAR g_AdcSrvName[64] = _BRDC("FM212x1G0"); // с номером службы
-//BRDCHAR g_AdcSrvName[64] = _BRDC("FM816x250M0"); // с номером службы
+BRDCHAR g_AdcSrvName[64] = _BRDC("FM412x500M0"); // с номером службы
+//BRDCHAR g_AdcSrvName[64] = _BRDC("FM212x1G0"); // с номером службы
 //BRDCHAR g_AdcSrvName[64] = _BRDC("ADC214X400M0"); // с номером службы
+
 S32 SetParamSrv(BRD_Handle handle, BRD_ServList* srv, int idx);
 S32 DaqIntoFifo(BRD_Handle hADC, PVOID pSig, ULONG bBufSize);
 
-BRDCHAR g_iniFileName[FILENAME_MAX] = _BRDC("//ADC_FM212x1G.ini");
-//BRDCHAR g_iniFileName[FILENAME_MAX] = _BRDC("//ADC_FM816x250M.ini");
-//BRDCHAR g_iniFileName[FILENAME_MAX] = _BRDC("//ADC_214x400M.ini");
+BRDCHAR g_iniFileName[FILENAME_MAX] = _BRDC("//adc.ini");
 
 U32 g_bBufSize; // размер собираемых данных (в байтах)
 U32 g_MemAsFifo = 1; // 1 - использовать динамическую память на модуле в качестве FIFO
