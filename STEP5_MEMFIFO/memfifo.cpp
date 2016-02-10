@@ -25,7 +25,6 @@
 
 BRDCHAR g_AdcSrvName[64] = _BRDC("FM412x500M0"); // с номером службы
 //BRDCHAR g_AdcSrvName[64] = _BRDC("FM212x1G0"); // с номером службы
-//BRDCHAR g_AdcSrvName[64] = _BRDC("FM816x250M0"); // с номером службы
 //BRDCHAR g_AdcSrvName[64] = _BRDC("ADC214X400M0"); // с номером службы
 
 S32 SetParamSrv(BRD_Handle handle, BRD_ServList* srv, int idx);
@@ -33,10 +32,7 @@ S32 AllocDaqBuf(BRD_Handle hADC, PVOID* &pSig, unsigned long long* pbytesBufSize
 S32 FreeDaqBuf(BRD_Handle hADC, ULONG blkNum);
 S32 DaqIntoFifoDMA(BRD_Handle hADC);
 
-BRDCHAR g_iniFileName[FILENAME_MAX] = _BRDC("//ADC_FM412x500M.ini");
-//BRDCHAR g_iniFileName[FILENAME_MAX] = _BRDC("//ADC_FM212x1G.ini");
-//BRDCHAR g_iniFileName[FILENAME_MAX] = _BRDC("//ADC_FM816x250M.ini");
-//BRDCHAR g_iniFileName[FILENAME_MAX] = _BRDC("//ADC_214x400M.ini");
+BRDCHAR g_iniFileName[FILENAME_MAX] = _BRDC("//adc.ini");
 
 BRDctrl_StreamCBufAlloc g_buf_dscr; // описание буфера стрима
 unsigned long long g_bBufSize; // размер собираемых данных (в байтах)
@@ -440,29 +436,6 @@ S32 DaqIntoFifoDMA(BRD_Handle hADC)
 		BRDC_printf(_BRDC("BRDctrl_STREAM_CBUF_WAITBUF is TIME-OUT(%d sec.)\n    AdcFifoStatus = %08X SdramFifoStatus = %08X"),
 														msTimeout*(i+1)/1000, adc_status, sdram_status);
 	}
-
-	//while(1) // при старте с зацикливанием
-	//{
-	//	status = BRD_ctrl(hADC, 0, BRDctrl_STREAM_CBUF_WAITBLOCK, &msTimeout);
-	//	if(BRD_errcmp(status, BRDerr_WAIT_TIMEOUT))
-	//	{	// если вышли по тайм-ауту, то остановимся
-	//		status = BRD_ctrl(hADC, 0, BRDctrl_STREAM_CBUF_STOP, NULL);
-	//		DisplayError(status, __FUNCTION__, _BRDC("TIME-OUT"));
-	//		break;
-	//	}
-	//	BRDctrl_StreamCBufState buf_state;
-	//	buf_state.timeout = 0;
-	//	status = BRD_ctrl(hADC, 0, BRDctrl_STREAM_CBUF_STATE, &buf_state);
-	//	printf("State Total Counter = %d\r", buf_state.blkNumTotal);
-	//	//printf("Total Counter = %d\r", g_buf_dscr.pStub->totalCounter);
-	//	if(GetAsyncKeyState(VK_ESCAPE))
-	//	{
-	//		status = BRD_ctrl(hADC, 0, BRDctrl_STREAM_CBUF_STOP, NULL);
-	//		printf("\n\n", buf_state.blkNumTotal);
-	//		_getch();
-	//		break; 
-	//	}
-	//}
 
 	Enable = 0;
 	status = BRD_ctrl(hADC, 0, BRDctrl_ADC_ENABLE, &Enable); // запрет работы АЦП

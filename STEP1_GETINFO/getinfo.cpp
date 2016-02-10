@@ -48,14 +48,13 @@ int BRDC_main( int argc, BRDCHAR *argv[] )
 	if(!BRD_errcmp(status, BRDerr_OK))
 	{
 		BRDC_printf( _BRDC("ERROR: BARDY Initialization = 0x%X\n"), status );
-		BRDC_printf( _BRDC("Press any key for leaving program...\n"));
 		return -1;
 	}
 	BRDC_printf(_BRDC("BRD_init: OK. Number of devices = %d\n"), DevNum);
 
 	// получить список LID (каждая запись соответствует устройству)
 	BRD_LidList lidList;
-	lidList.item = MAX_DEV; // считаем, что устройств может быть не больше 10
+	lidList.item = MAX_DEV;
 	lidList.pLID = new U32[MAX_DEV];
 	status = BRD_lidList(lidList.pLID, lidList.item, &lidList.itemReal);
 

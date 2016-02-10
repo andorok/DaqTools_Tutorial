@@ -31,10 +31,7 @@ S32 AllocDaqBuf(BRD_Handle hADC, PVOID* &pSig, unsigned long long* pbytesBufSize
 S32 FreeDaqBuf(BRD_Handle hADC, ULONG blkNum);
 S32 DaqIntoFifoDMA(BRD_Handle hADC);
 
-BRDCHAR g_iniFileName[FILENAME_MAX] = _BRDC("//ADC_FM412x500M.ini");
-//BRDCHAR g_iniFileName[FILENAME_MAX] = _BRDC("//ADC_FM212x1G.ini");
-//BRDCHAR g_iniFileName[FILENAME_MAX] = _BRDC("//ADC_FM816x250M.ini");
-//BRDCHAR g_iniFileName[FILENAME_MAX] = _BRDC("//ADC_214x400M.ini");
+BRDCHAR g_iniFileName[FILENAME_MAX] = _BRDC("//adc.ini");
 
 BRDctrl_StreamCBufAlloc g_buf_dscr; // описание буфера стрима
 unsigned long long g_bBufSize; // размер собираемых данных (в байтах)
