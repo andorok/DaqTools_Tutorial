@@ -260,7 +260,6 @@ void Incrementing(void* buf, ULONG size)
 {
 	USHORT* pSig = (USHORT*)buf;
 	int num = size >> 1;
-	double sum = 0;
 	for (int i = 0; i < num; i++)
 		pSig[i] += 1;
 }
@@ -284,7 +283,6 @@ void MinMax(void* buf, ULONG size, double& minval, double& maxval)
 {
 	SHORT* pSig = (SHORT*)buf;
 	int num = size >> 1;
-	double sum = 0;
 	for (int i = 0; i < num; i++)
 	{
 		double sample = (double)(pSig[i]);

@@ -421,7 +421,6 @@ BRD_Handle ADC_open(BRD_Handle hDEV, BRDCHAR* adcsrv, BRD_AdcCfg* adcfg)
 {
 	S32		status;
 	BRD_Handle hADC = -1;
-	int j = 0;
 	U32 mode = BRDcapt_EXCLUSIVE;
 	hADC = BRD_capture(hDEV, 0, &mode, adcsrv, 10000);
 	if (hADC > 0)
@@ -590,7 +589,6 @@ S32 ADC_read(BRD_Handle hADC)
 {
 	S32	status = 0;
 	ULONG adc_status = 0;
-	ULONG sdram_status = 0;
 	S32	wait_status = 0;
 	ULONG Enable = 1;
 

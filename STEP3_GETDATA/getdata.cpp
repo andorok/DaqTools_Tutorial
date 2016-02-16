@@ -128,7 +128,7 @@ int BRDC_main( int argc, BRDCHAR *argv[] )
 						IPC_writeFile(hfile, pSig, g_bBufSize);
 						IPC_closeFile(hfile);
 
-						delete pSig;
+						delete (char*)pSig;
 					}
 			}
 			else

@@ -329,7 +329,6 @@ S32 DaqIntoFifoDMA(BRD_Handle hADC)
 {
 	S32	status = 0;
 	ULONG adc_status = 0;
-	ULONG sdram_status = 0;
 	S32	wait_status = 0;
 	ULONG Enable = 1;
 
