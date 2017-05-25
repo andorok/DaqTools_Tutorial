@@ -22,7 +22,8 @@
 #define		MAX_CHAN	32		// считаем, что каналов может быть не больше MAX_CHAN
 
 
-BRDCHAR g_AdcSrvName[64] = _BRDC("FM412x500M0"); // с номером службы
+BRDCHAR g_AdcSrvName[64] = _BRDC("ADC214X1GTRF0"); // с номером службы
+//BRDCHAR g_AdcSrvName[64] = _BRDC("FM412x500M0"); // с номером службы
 //BRDCHAR g_AdcSrvName[64] = _BRDC("FM212x1G0"); // с номером службы
 //BRDCHAR g_AdcSrvName[64] = _BRDC("ADC214X400M0"); // с номером службы
 
@@ -158,6 +159,14 @@ S32 AdcSettings(BRD_Handle hADC, int idx, BRDCHAR* srvName)
 	BRDC_strcpy(ini_file.sectionName, iniSectionName);
 	status = BRD_ctrl(hADC, 0, BRDctrl_ADC_READINIFILE, &ini_file);
 
+	// получить маску включенных каналов
+	ULONG chan_mask = 0;
+	status = BRD_ctrl(hADC, 0, BRDctrl_ADC_GETCHANMASK, &chan_mask);
+	if (BRD_errcmp(status, BRDerr_OK))
+		BRDC_printf(_BRDC("BRDctrl_ADC_GETCHANMASK: chan_mask = %0X\n"), chan_mask);
+	else
+		BRDC_printf(_BRDC("BRDctrl_ADC_GETCHANMASK: Error!!!\n"));
+
 	// проверяем наличие динамической памяти
 	BRD_SdramCfgEx SdramConfig;
 	SdramConfig.Size = sizeof(BRD_SdramCfgEx);
@@ -203,6 +212,14 @@ S32 AdcSettings(BRD_Handle hADC, int idx, BRDCHAR* srvName)
 		BRDC_printf(_BRDC("No SDRAM on board!!!\n"));
 		status = BRDerr_INSUFFICIENT_RESOURCES;
 	}
+
+	status = BRD_ctrl(hADC, 0, BRDctrl_ADC_PREPARESTART, NULL);
+	if (status < 0)
+		if (!(BRD_errcmp(status, BRDerr_CMD_UNSUPPORTED)
+			|| BRD_errcmp(status, BRDerr_INSUFFICIENT_SERVICES)))
+		{
+			return -1;
+		}
 
 	return status;
 }

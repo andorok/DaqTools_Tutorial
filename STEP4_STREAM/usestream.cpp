@@ -21,7 +21,8 @@
 #define		MAX_CHAN	32		// считаем, что каналов может быть не больше MAX_CHAN
 
 
-BRDCHAR g_AdcSrvName[64] = _BRDC("FM412x500M0"); // с номером службы
+BRDCHAR g_AdcSrvName[64] = _BRDC("ADC214X1GTRF0"); // с номером службы
+//BRDCHAR g_AdcSrvName[64] = _BRDC("FM412x500M0"); // с номером службы
 //BRDCHAR g_AdcSrvName[64] = _BRDC("FM212x1G0"); // с номером службы
 //BRDCHAR g_AdcSrvName[64] = _BRDC("FM816x250M0"); // с номером службы
 //BRDCHAR g_AdcSrvName[64] = _BRDC("ADC214X400M0"); // с номером службы
@@ -177,6 +178,14 @@ S32 AdcSettings(BRD_Handle hADC, int idx, BRDCHAR* srvName)
 	BRDC_strcpy(ini_file.fileName, iniFilePath);
 	BRDC_strcpy(ini_file.sectionName, iniSectionName);
 	status = BRD_ctrl(hADC, 0, BRDctrl_ADC_READINIFILE, &ini_file);
+
+	status = BRD_ctrl(hADC, 0, BRDctrl_ADC_PREPARESTART, NULL);
+	if (status < 0)
+		if (!(BRD_errcmp(status, BRDerr_CMD_UNSUPPORTED)
+			|| BRD_errcmp(status, BRDerr_INSUFFICIENT_SERVICES)))
+		{
+			return -1;
+		}
 
 	return status;
 }

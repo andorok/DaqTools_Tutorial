@@ -57,10 +57,11 @@ typedef struct
 
 #pragma pack(pop)
 
+BRDCHAR g_AdcSrvName[64] = _BRDC("ADC214X1GTRF0"); // с номером службы
 //BRDCHAR g_AdcSrvName[MAX_NAME] = _BRDC("FM412x500M0"); // имя службы с номером 
 //BRDCHAR g_AdcSrvName[MAX_NAME] = _BRDC("FM212x1G0"); // имя службы с номером 
 //BRDCHAR g_AdcSrvName[MAX_NAME] = _BRDC("FM814x250M0"); // имя службы с номером 
-BRDCHAR g_AdcSrvName[MAX_NAME] = _BRDC("ADC214X400M0"); // имя службы с номером 
+//BRDCHAR g_AdcSrvName[MAX_NAME] = _BRDC("ADC214X400M0"); // имя службы с номером 
 BRDctrl_StreamCBufAlloc g_buf_dscr; // описание буфера стрима
 
 // открыть устройство
@@ -469,6 +470,14 @@ int ADC_set(BRD_Handle hADC, int iDev, BRDCHAR* adcsrv, BRDCHAR* inifile, ADC_PA
 	adcpar->clkSrc = sync_mode.clkSrc;
 	adcpar->clkValue = sync_mode.clkValue;
 	adcpar->rate = sync_mode.rate;
+
+	status = BRD_ctrl(hADC, 0, BRDctrl_ADC_PREPARESTART, NULL);
+	if (status < 0)
+		if (!(BRD_errcmp(status, BRDerr_CMD_UNSUPPORTED)
+			|| BRD_errcmp(status, BRDerr_INSUFFICIENT_SERVICES)))
+		{
+			return -1;
+		}
 
 	return 0;
 }
