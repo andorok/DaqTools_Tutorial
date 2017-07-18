@@ -294,6 +294,12 @@ void SubmodName(ULONG id, BRDCHAR * str)
 	case 0x1020:    BRDC_strcpy(str, _BRDC("FM214x250M")); break;
 	case 0x1030:    BRDC_strcpy(str, _BRDC("FM412x500M")); break;
 	case 0x1040:    BRDC_strcpy(str, _BRDC("FM212x1G")); break;
+	case 0x1050:    BRDC_strcpy(str, _BRDC("FM816x250M")); break;
+	case 0x1051:    BRDC_strcpy(str, _BRDC("FM416x250M")); break;
+	case 0x1052:    BRDC_strcpy(str, _BRDC("FM216x250MDA")); break;
+	case 0x1053:    BRDC_strcpy(str, _BRDC("FM816x250M1")); break;
+	case 0x10C0:    BRDC_strcpy(str, _BRDC("FM212x4GDA")); break;
+	case 0x10C8:    BRDC_strcpy(str, _BRDC("FM214x1GTRF")); break;
 	default: BRDC_strcpy(str, _BRDC("UNKNOW")); break;
 	}
 }
