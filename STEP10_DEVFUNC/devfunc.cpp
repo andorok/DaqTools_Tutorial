@@ -441,6 +441,7 @@ BRD_Handle ADC_open(BRD_Handle hDEV, BRDCHAR* adcsrv, BRD_AdcCfg* adcfg)
 	
 // установить рабочие параметры АЦП
 // hADC - (IN) дескриптор службы АЦП
+// iDev - (IN) порядковый номер устройства 
 // adcsrv - (IN) имя службы АЦП
 // inifile - (IN) файл инициализации c параметрами работы АЦП
 // adcpar - (OUT) заполняемая рабочими параметрами АЦП структура
